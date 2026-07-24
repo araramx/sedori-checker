@@ -1,0 +1,1124 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#166e52">
+<title>せどりチェッカー</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html { font-size: 16px; }
+  body {
+    font-family: "Hiragino Kaku Gothic ProN", "Yu Gothic UI", Meiryo, system-ui, sans-serif;
+    background: #f2f4f3; color: #1c2420;
+    padding-bottom: calc(72px + env(safe-area-inset-bottom));
+  }
+  header {
+    background: #166e52; color: #fff;
+    padding: calc(10px + env(safe-area-inset-top)) 16px 10px;
+    position: sticky; top: 0; z-index: 20;
+    display: flex; align-items: baseline; gap: 8px;
+  }
+  header h1 { font-size: 1.1rem; font-weight: 700; }
+  header .sub { font-size: .72rem; opacity: .85; }
+  main { max-width: 560px; margin: 0 auto; padding: 12px 12px 24px; }
+
+  .card {
+    background: #fff; border-radius: 14px; padding: 14px;
+    margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,.07);
+  }
+  .step-label {
+    display: inline-block; background: #e3f0eb; color: #166e52;
+    font-size: .75rem; font-weight: 700; border-radius: 6px;
+    padding: 2px 8px; margin-bottom: 8px;
+  }
+  .card h2 { font-size: .98rem; margin-bottom: 10px; }
+  .hint { font-size: .76rem; color: #5c6b64; line-height: 1.5; margin-top: 6px; }
+
+  label.fld { display: block; font-size: .8rem; font-weight: 600; color: #37453f; margin: 10px 0 4px; }
+  input[type=text], input[type=number], input[type=password], select, textarea {
+    width: 100%; font-size: 1.05rem; padding: 10px 12px;
+    border: 1.5px solid #ccd6d1; border-radius: 10px; background: #fff;
+    color: #1c2420;
+  }
+  input:focus, select:focus, textarea:focus { outline: 2px solid #16a37a; border-color: #16a37a; }
+  textarea { font-size: .95rem; min-height: 64px; }
+
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    font-size: .95rem; font-weight: 700; border: none; border-radius: 12px;
+    padding: 13px 14px; cursor: pointer; min-height: 48px; width: 100%;
+    margin-top: 8px; color: #fff; background: #166e52;
+  }
+  .btn:active { transform: scale(.985); }
+  .btn.secondary { background: #eef2f0; color: #166e52; border: 1.5px solid #bcd3ca; }
+  .btn.small { min-height: 40px; padding: 8px 10px; font-size: .85rem; width: auto; }
+  .btn.danger { background: #fbe9e9; color: #b42020; border: 1.5px solid #e6baba; }
+  .btn:disabled { opacity: .45; }
+  .btn-row { display: flex; gap: 8px; }
+  .btn-row .btn { flex: 1; }
+
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0 10px; }
+
+  /* 相場リンク */
+  .links { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
+  .links a {
+    display: block; text-align: center; text-decoration: none;
+    background: #f4f8f6; color: #14563f; border: 1.5px solid #cfe0d8;
+    font-size: .84rem; font-weight: 700; padding: 12px 6px; border-radius: 10px;
+  }
+  .links a.wide { grid-column: 1 / -1; background: #e3f0eb; }
+
+  /* 判定 */
+  .verdict {
+    text-align: center; border-radius: 12px; padding: 14px 10px; margin-bottom: 10px;
+    font-size: 1.5rem; font-weight: 800; letter-spacing: .1em;
+  }
+  .verdict .why { display: block; font-size: .78rem; font-weight: 600; letter-spacing: 0; margin-top: 4px; }
+  .v-buy   { background: #e5f6ec; color: #15803d; border: 2px solid #6fce96; }
+  .v-check { background: #fdf3e3; color: #b45309; border: 2px solid #ecc07c; }
+  .v-skip  { background: #fdeaea; color: #b91c1c; border: 2px solid #eaa2a2; }
+  .v-none  { background: #f0f2f1; color: #7a8781; border: 2px dashed #cbd4d0; font-size: 1rem; }
+
+  table.result { width: 100%; border-collapse: collapse; font-size: .9rem; }
+  table.result td { padding: 6px 4px; border-bottom: 1px solid #eef1ef; }
+  table.result td:last-child { text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; }
+  tr.profit-row td { font-size: 1.05rem; }
+  .neg { color: #b91c1c; }
+  .pos { color: #15803d; }
+
+  .maxbuy {
+    margin-top: 10px; background: #f4f8f6; border-radius: 10px; padding: 10px 12px;
+    font-size: .86rem; line-height: 1.5;
+  }
+  .maxbuy b { font-size: 1.15rem; color: #14563f; }
+
+  table.compare { width: 100%; border-collapse: collapse; font-size: .84rem; margin-top: 8px; }
+  table.compare th { font-size: .74rem; color: #5c6b64; text-align: left; padding: 4px; border-bottom: 1.5px solid #dde4e0; }
+  table.compare td { padding: 6px 4px; border-bottom: 1px solid #eef1ef; font-variant-numeric: tabular-nums; }
+  table.compare td:nth-child(2), table.compare td:nth-child(3) { text-align: right; }
+  table.compare tr.best td { background: #e5f6ec; font-weight: 700; }
+  .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 4px; }
+  .d-buy { background: #22c55e; } .d-check { background: #f59e0b; } .d-skip { background: #ef4444; }
+
+  ul.cautions { margin: 8px 0 0 2px; list-style: none; }
+  ul.cautions li {
+    font-size: .82rem; line-height: 1.5; padding: 6px 8px 6px 26px; position: relative;
+    background: #fffaf0; border-radius: 8px; margin-bottom: 6px; border: 1px solid #f0e2c4;
+  }
+  ul.cautions li::before { content: "⚠"; position: absolute; left: 8px; color: #b45309; }
+
+  /* 写真 */
+  .photo-wrap { display: flex; gap: 10px; align-items: center; margin-top: 8px; }
+  #photoThumb { width: 84px; height: 84px; object-fit: cover; border-radius: 10px; border: 1.5px solid #ccd6d1; display: none; }
+  .candidates button {
+    display: block; width: 100%; text-align: left; margin-top: 6px;
+    background: #f4f8f6; border: 1.5px solid #cfe0d8; border-radius: 10px;
+    padding: 10px 12px; font-size: .88rem; cursor: pointer; color: #14563f; font-weight: 600;
+  }
+
+  /* 履歴 */
+  .hist-item {
+    display: flex; gap: 10px; align-items: center; background: #fff;
+    border-radius: 12px; padding: 10px 12px; margin-bottom: 8px;
+    box-shadow: 0 1px 2px rgba(0,0,0,.06); cursor: pointer;
+  }
+  .hist-item img { width: 52px; height: 52px; border-radius: 8px; object-fit: cover; background: #eef1ef; }
+  .hist-item .noimg { width: 52px; height: 52px; border-radius: 8px; background: #eef1ef; display: flex; align-items: center; justify-content: center; font-size: 1.3rem; flex-shrink: 0; }
+  .hist-body { flex: 1; min-width: 0; }
+  .hist-name { font-size: .88rem; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .hist-meta { font-size: .74rem; color: #5c6b64; margin-top: 2px; }
+  .badge { font-size: .72rem; font-weight: 800; border-radius: 6px; padding: 3px 8px; flex-shrink: 0; }
+  .b-buy { background: #e5f6ec; color: #15803d; } .b-check { background: #fdf3e3; color: #b45309; } .b-skip { background: #fdeaea; color: #b91c1c; }
+  .hist-detail { background: #fff; border-radius: 0 0 12px 12px; margin: -8px 0 8px; padding: 10px 12px; border-top: 1px dashed #dde4e0; font-size: .84rem; }
+  .hist-detail table { width: 100%; font-size: .84rem; }
+  .hist-detail td { padding: 3px 2px; }
+  .hist-detail td:last-child { text-align: right; font-weight: 600; }
+
+  /* タブバー */
+  nav.tabbar {
+    position: fixed; bottom: 0; left: 0; right: 0; z-index: 30;
+    display: flex; background: #fff; border-top: 1px solid #dde4e0;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  nav.tabbar button {
+    flex: 1; border: none; background: none; padding: 8px 0 10px;
+    font-size: .72rem; color: #7a8781; cursor: pointer; font-weight: 700;
+  }
+  nav.tabbar button .ico { display: block; font-size: 1.35rem; margin-bottom: 1px; }
+  nav.tabbar button.active { color: #166e52; }
+
+  section.tab { display: none; }
+  section.tab.active { display: block; }
+
+  /* スキャナー */
+  #scanOverlay {
+    display: none; position: fixed; inset: 0; z-index: 100; background: #000;
+  }
+  #scanOverlay.show { display: block; }
+  #scanVideo { width: 100%; height: 100%; object-fit: cover; }
+  .scan-guide {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
+    width: 78%; height: 130px; border: 3px solid rgba(255,255,255,.9); border-radius: 12px;
+    box-shadow: 0 0 0 2000px rgba(0,0,0,.35);
+  }
+  .scan-hint { position: absolute; top: 12%; width: 100%; text-align: center; color: #fff; font-size: .9rem; font-weight: 700; text-shadow: 0 1px 3px #000; }
+  #scanCancel {
+    position: absolute; bottom: calc(30px + env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%);
+    background: rgba(255,255,255,.92); color: #1c2420; border: none; border-radius: 999px;
+    padding: 13px 40px; font-size: 1rem; font-weight: 700; cursor: pointer;
+  }
+
+  /* トースト */
+  #toast {
+    position: fixed; bottom: calc(84px + env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%);
+    background: #1c2420; color: #fff; font-size: .85rem; padding: 10px 18px;
+    border-radius: 999px; opacity: 0; transition: opacity .25s; pointer-events: none;
+    max-width: 90%; text-align: center; z-index: 200;
+  }
+  #toast.show { opacity: .95; }
+  .spin { display: inline-block; animation: sp 1s linear infinite; }
+  @keyframes sp { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>せどりチェッカー</h1>
+  <span class="sub">仕入れ判断サポート(個人用)</span>
+</header>
+
+<main>
+
+<!-- ============ 調べる ============ -->
+<section id="tab-check" class="tab active">
+
+  <div class="card">
+    <span class="step-label">STEP 1</span>
+    <h2>商品を読み取る</h2>
+    <div class="btn-row">
+      <button class="btn" id="btnScan">📷 バーコードを<br>カメラで読む</button>
+      <button class="btn secondary" id="btnBarcodePhoto">🖼 写真から<br>読み取る</button>
+    </div>
+    <input type="file" id="barcodePhotoInput" accept="image/*" capture="environment" hidden>
+
+    <label class="fld" for="janInput">JANコード(バーコードの数字)</label>
+    <input type="text" id="janInput" inputmode="numeric" placeholder="例: 4901234567894(手入力もOK)">
+    <button class="btn secondary" id="btnJanLookup">🔎 JANから商品名を調べる(無料・食品系)</button>
+
+    <label class="fld" for="nameInput">商品名</label>
+    <input type="text" id="nameInput" placeholder="例: 任天堂 Switch プロコントローラー">
+
+    <label class="fld">商品の外観写真(バーコードがない物・AI判定用)</label>
+    <div class="photo-wrap">
+      <img id="photoThumb" alt="商品写真">
+      <div style="flex:1">
+        <button class="btn secondary" id="btnProductPhoto" style="margin-top:0">📸 商品の写真を撮る</button>
+        <button class="btn" id="btnAi">🤖 AIで商品名を判定</button>
+      </div>
+    </div>
+    <input type="file" id="productPhotoInput" accept="image/*" capture="environment" hidden>
+    <div id="aiStatus" class="hint"></div>
+    <div class="candidates" id="aiCandidates"></div>
+    <div class="hint" id="aiKeyHint"></div>
+  </div>
+
+  <div class="card">
+    <span class="step-label">STEP 2</span>
+    <h2>相場を調べる(タップで各サイトを開く)</h2>
+    <div class="hint">「売り切れ」「落札相場」=実際に売れた価格を必ず見てください。出品中の価格は当てになりません。</div>
+    <div class="links" id="linksArea"></div>
+  </div>
+
+  <div class="card">
+    <span class="step-label">STEP 3</span>
+    <h2>価格を入力する</h2>
+    <div class="grid2">
+      <div>
+        <label class="fld" for="sellPrice">想定販売価格(円)</label>
+        <input type="number" id="sellPrice" inputmode="numeric" placeholder="相場で確認した額">
+      </div>
+      <div>
+        <label class="fld" for="buyPrice">仕入れ価格(円)</label>
+        <input type="number" id="buyPrice" inputmode="numeric" placeholder="値札の価格">
+      </div>
+    </div>
+    <div class="grid2">
+      <div>
+        <label class="fld" for="channelSel">メインの販売先</label>
+        <select id="channelSel"></select>
+      </div>
+      <div>
+        <label class="fld" for="shipPreset">送料のめやす</label>
+        <select id="shipPreset">
+          <option value="215">小型(ネコポス等) 215円</option>
+          <option value="530">宅急便コンパクト等 530円</option>
+          <option value="750" selected>60サイズ 750円</option>
+          <option value="850">80サイズ 850円</option>
+          <option value="1050">100サイズ 1050円</option>
+          <option value="0">送料なし(着払い等) 0円</option>
+        </select>
+      </div>
+    </div>
+    <div class="grid2">
+      <div>
+        <label class="fld" for="shipInput">送料(円・自由に修正可)</label>
+        <input type="number" id="shipInput" inputmode="numeric" value="750">
+      </div>
+      <div>
+        <label class="fld" for="costInput">その他経費(梱包材など)</label>
+        <input type="number" id="costInput" inputmode="numeric" value="0">
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>判定結果</h2>
+    <div class="verdict v-none" id="verdictBox">価格を入力してください</div>
+    <table class="result" id="resultTable"></table>
+    <div class="maxbuy" id="maxbuyBox"></div>
+    <h2 style="margin-top:14px">販売先ごとの利益くらべ</h2>
+    <table class="compare">
+      <thead><tr><th>販売先</th><th>手数料</th><th>利益</th><th>判定</th></tr></thead>
+      <tbody id="compareBody"></tbody>
+    </table>
+    <h2 style="margin-top:14px">注意点</h2>
+    <ul class="cautions" id="cautionsList"></ul>
+    <label class="fld" for="memoInput">メモ(任意)</label>
+    <textarea id="memoInput" placeholder="例: 〇〇店で3個あり。箱に傷"></textarea>
+    <button class="btn" id="btnSave">💾 この結果を履歴に保存</button>
+    <button class="btn secondary" id="btnClear">🧹 入力をクリアして次の商品へ</button>
+  </div>
+
+</section>
+
+<!-- ============ 履歴 ============ -->
+<section id="tab-history" class="tab">
+  <div class="card">
+    <h2>調べた履歴</h2>
+    <div class="hint">タップすると詳細が開きます。データはこの端末(ブラウザ)の中にだけ保存されます。</div>
+    <div class="btn-row">
+      <button class="btn secondary small" id="btnCsv">📄 CSVで書き出す</button>
+      <button class="btn danger small" id="btnClearHistory">🗑 全履歴を削除</button>
+    </div>
+  </div>
+  <div id="histList"></div>
+</section>
+
+<!-- ============ 設定 ============ -->
+<section id="tab-settings" class="tab">
+  <div class="card">
+    <h2>判定の基準</h2>
+    <div class="grid2">
+      <div>
+        <label class="fld">「買い」利益額(円以上)</label>
+        <input type="number" id="setBuyProfit" inputmode="numeric">
+      </div>
+      <div>
+        <label class="fld">「買い」利益率(%以上)</label>
+        <input type="number" id="setBuyRate" inputmode="numeric">
+      </div>
+      <div>
+        <label class="fld">「見送り」利益額(円未満)</label>
+        <input type="number" id="setDropProfit" inputmode="numeric">
+      </div>
+      <div>
+        <label class="fld">「見送り」利益率(%未満)</label>
+        <input type="number" id="setDropRate" inputmode="numeric">
+      </div>
+    </div>
+    <div class="hint">利益率は「販売価格に対する割合」です。両方の条件を満たすと「買い」、どちらかが見送り基準を下回ると「見送り」、その間は「要調査」になります。</div>
+  </div>
+
+  <div class="card">
+    <h2>販売先の手数料率(%)</h2>
+    <div class="grid2" id="feeInputs"></div>
+    <div class="hint">※めやすです。手数料は改定されることがあるので、ときどき各サービスの公式情報を確認してください。</div>
+  </div>
+
+  <div class="card">
+    <h2>AI写真判定(任意)</h2>
+    <label class="fld" for="setApiKey">Claude APIキー</label>
+    <input type="password" id="setApiKey" placeholder="sk-ant-... (空欄ならAI判定はオフ)">
+    <label class="fld" for="setModel">AIモデル</label>
+    <select id="setModel">
+      <option value="claude-opus-5">標準(claude-opus-5・高精度)</option>
+      <option value="claude-haiku-4-5">節約(claude-haiku-4-5・低コスト)</option>
+    </select>
+    <div class="hint">
+      写真から商品名の候補を出す機能です。APIキーは console.anthropic.com で取得できます(有料・1回あたり数円程度)。
+      キーはこの端末のブラウザ内にだけ保存され、Anthropic社のAPI以外には送信されません。
+    </div>
+  </div>
+
+  <div class="card">
+    <button class="btn" id="btnSaveSettings">💾 設定を保存</button>
+    <button class="btn secondary" id="btnResetSettings">↩ 設定を初期値に戻す</button>
+  </div>
+
+  <div class="card">
+    <h2>このアプリについて</h2>
+    <div class="hint">
+      店頭や自宅で「目の前にある実物」を調べて仕入れ判断するための個人用ツールです。
+      自動での商品収集・スクレイピングは行いません。相場の最終確認は必ずご自身の目で行ってください。
+      中古品の売買を業として行うには古物商許可が必要です。
+    </div>
+  </div>
+</section>
+
+</main>
+
+<!-- タブバー -->
+<nav class="tabbar">
+  <button data-tab="tab-check" class="active"><span class="ico">🔍</span>調べる</button>
+  <button data-tab="tab-history"><span class="ico">📚</span>履歴</button>
+  <button data-tab="tab-settings"><span class="ico">⚙️</span>設定</button>
+</nav>
+
+<!-- スキャナー -->
+<div id="scanOverlay">
+  <video id="scanVideo" playsinline muted></video>
+  <div class="scan-hint">バーコードを枠の中に入れてください</div>
+  <div class="scan-guide"></div>
+  <button id="scanCancel">キャンセル</button>
+</div>
+
+<div id="toast"></div>
+
+<script>
+"use strict";
+
+/* ============================================================
+   設定・保存
+============================================================ */
+const LS_SETTINGS = "sedori_settings_v1";
+const LS_HISTORY  = "sedori_history_v1";
+
+const DEFAULT_SETTINGS = {
+  channels: [
+    { id: "mercari",       name: "メルカリ",     fee: 10 },
+    { id: "yahoo_flea",    name: "Yahoo!フリマ", fee: 5 },
+    { id: "yahoo_auction", name: "ヤフオク",     fee: 10 },
+    { id: "rakuma",        name: "楽天ラクマ",   fee: 10 },
+    { id: "amazon",        name: "Amazon",       fee: 15 },
+  ],
+  buyProfit: 500, buyRate: 15, dropProfit: 200, dropRate: 8,
+  apiKey: "", model: "claude-opus-5",
+};
+
+function clone(o) { return JSON.parse(JSON.stringify(o)); }
+
+function loadSettings() {
+  try {
+    const s = JSON.parse(localStorage.getItem(LS_SETTINGS));
+    if (!s) return clone(DEFAULT_SETTINGS);
+    const merged = Object.assign(clone(DEFAULT_SETTINGS), s);
+    if (!Array.isArray(merged.channels) || !merged.channels.length) merged.channels = clone(DEFAULT_SETTINGS.channels);
+    return merged;
+  } catch (e) { return clone(DEFAULT_SETTINGS); }
+}
+let settings = loadSettings();
+
+function loadHistory() {
+  try { return JSON.parse(localStorage.getItem(LS_HISTORY)) || []; }
+  catch (e) { return []; }
+}
+let history = loadHistory();
+
+function persistHistory() {
+  try {
+    localStorage.setItem(LS_HISTORY, JSON.stringify(history));
+    return true;
+  } catch (e) {
+    // 容量オーバー時は写真を落として再挑戦
+    history.forEach(h => { delete h.photo; });
+    try { localStorage.setItem(LS_HISTORY, JSON.stringify(history)); toast("保存容量が一杯のため、古い写真を削除して保存しました"); return true; }
+    catch (e2) { toast("保存に失敗しました(容量オーバー)"); return false; }
+  }
+}
+
+/* ============================================================
+   共通部品
+============================================================ */
+const $ = id => document.getElementById(id);
+const yen = n => "¥" + Math.round(n).toLocaleString("ja-JP");
+
+let toastTimer = null;
+function toast(msg) {
+  const t = $("toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove("show"), 3200);
+}
+
+/* タブ切替 */
+document.querySelectorAll("nav.tabbar button").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll("nav.tabbar button").forEach(b => b.classList.remove("active"));
+    document.querySelectorAll("section.tab").forEach(s => s.classList.remove("active"));
+    btn.classList.add("active");
+    $(btn.dataset.tab).classList.add("active");
+    if (btn.dataset.tab === "tab-history") renderHistory();
+    window.scrollTo(0, 0);
+  });
+});
+
+/* ============================================================
+   バーコード読み取り
+============================================================ */
+const hasDetector = "BarcodeDetector" in window;
+let detector = null;
+if (hasDetector) {
+  try { detector = new BarcodeDetector({ formats: ["ean_13", "ean_8", "upc_a", "upc_e"] }); }
+  catch (e) { detector = null; }
+}
+
+let scanStream = null, scanTimer = null;
+
+$("btnScan").addEventListener("click", async () => {
+  if (!detector) {
+    toast("この端末はカメラ読み取りに対応していません。「写真から読み取る」か手入力をご利用ください");
+    return;
+  }
+  if (!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)) {
+    toast("カメラを起動できません(https接続が必要です)。「写真から読み取る」をお試しください");
+    return;
+  }
+  try {
+    scanStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+  } catch (e) {
+    toast("カメラの使用が許可されませんでした");
+    return;
+  }
+  const v = $("scanVideo");
+  v.srcObject = scanStream;
+  $("scanOverlay").classList.add("show");
+  try { await v.play(); } catch (e) {}
+  scanLoop();
+});
+
+async function scanLoop() {
+  if (!scanStream) return;
+  try {
+    const codes = await detector.detect($("scanVideo"));
+    if (codes.length) {
+      $("janInput").value = codes[0].rawValue;
+      stopScan();
+      toast("読み取りました: " + codes[0].rawValue);
+      onItemChanged();
+      return;
+    }
+  } catch (e) { /* フレーム未準備などは無視して継続 */ }
+  scanTimer = setTimeout(scanLoop, 250);
+}
+
+function stopScan() {
+  clearTimeout(scanTimer);
+  if (scanStream) { scanStream.getTracks().forEach(t => t.stop()); scanStream = null; }
+  $("scanOverlay").classList.remove("show");
+}
+$("scanCancel").addEventListener("click", stopScan);
+
+/* 写真からバーコード読み取り */
+$("btnBarcodePhoto").addEventListener("click", () => {
+  if (!detector) { toast("この端末は画像からのバーコード読み取りに対応していません。手入力をご利用ください"); return; }
+  $("barcodePhotoInput").click();
+});
+$("barcodePhotoInput").addEventListener("change", async e => {
+  const file = e.target.files[0];
+  e.target.value = "";
+  if (!file) return;
+  try {
+    const img = await loadImageFromFile(file);
+    const codes = await detector.detect(img.el);
+    URL.revokeObjectURL(img.url);
+    if (codes.length) {
+      $("janInput").value = codes[0].rawValue;
+      toast("読み取りました: " + codes[0].rawValue);
+      onItemChanged();
+    } else {
+      toast("バーコードを読み取れませんでした。近づけて明るい場所でもう一度撮るか、数字を手入力してください");
+    }
+  } catch (err) {
+    toast("読み取りに失敗しました: " + err.message);
+  }
+});
+
+/* ============================================================
+   画像ユーティリティ
+============================================================ */
+function loadImageFromFile(file) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const el = new Image();
+    el.onload = () => resolve({ el, url });
+    el.onerror = () => { URL.revokeObjectURL(url); reject(new Error("画像を開けませんでした")); };
+    el.src = url;
+  });
+}
+
+function resizeToDataURL(imgEl, maxDim, quality) {
+  const w = imgEl.naturalWidth, h = imgEl.naturalHeight;
+  const scale = Math.min(1, maxDim / Math.max(w, h));
+  const cw = Math.max(1, Math.round(w * scale)), ch = Math.max(1, Math.round(h * scale));
+  const c = document.createElement("canvas");
+  c.width = cw; c.height = ch;
+  c.getContext("2d").drawImage(imgEl, 0, 0, cw, ch);
+  return c.toDataURL("image/jpeg", quality);
+}
+
+/* ============================================================
+   商品写真 + AI判定
+============================================================ */
+let photoFull = null;   // AI送信用(大きめ)
+let photoThumb = null;  // 履歴保存用(小さめ)
+let aiCautions = [];    // AIが返した注意点
+
+$("btnProductPhoto").addEventListener("click", () => $("productPhotoInput").click());
+$("productPhotoInput").addEventListener("change", async e => {
+  const file = e.target.files[0];
+  e.target.value = "";
+  if (!file) return;
+  try {
+    const img = await loadImageFromFile(file);
+    photoFull  = resizeToDataURL(img.el, 1100, 0.8);
+    photoThumb = resizeToDataURL(img.el, 320, 0.6);
+    URL.revokeObjectURL(img.url);
+    const t = $("photoThumb");
+    t.src = photoThumb;
+    t.style.display = "block";
+    $("aiCandidates").innerHTML = "";
+    $("aiStatus").textContent = "";
+    updateAiHint();
+  } catch (err) { toast(err.message); }
+});
+
+function updateAiHint() {
+  const hint = $("aiKeyHint");
+  if (!settings.apiKey) {
+    hint.textContent = "AI判定を使うには「設定」タブでAPIキーを入力してください(任意機能)。";
+  } else {
+    hint.textContent = "";
+  }
+}
+
+$("btnAi").addEventListener("click", async () => {
+  if (!settings.apiKey) { toast("設定タブでClaude APIキーを入力すると使えます"); return; }
+  if (!photoFull) { toast("先に「商品の写真を撮る」で写真を用意してください"); return; }
+  const btn = $("btnAi");
+  btn.disabled = true;
+  $("aiStatus").innerHTML = '<span class="spin">⏳</span> AIが写真を確認しています…(10〜30秒ほど)';
+  $("aiCandidates").innerHTML = "";
+  try {
+    const result = await callClaudeVision(photoFull);
+    renderAiResult(result);
+  } catch (err) {
+    $("aiStatus").textContent = "AI判定に失敗しました: " + err.message;
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+async function callClaudeVision(dataUrl) {
+  const b64 = dataUrl.split(",")[1];
+  const prompt =
+    "この写真に写っている商品を特定してください。日本国内の実店舗で実物を目の前にした個人が、中古品・小売品の転売可否を下調べするために使います。\n" +
+    "次のJSON形式だけで回答してください(前後に文章を付けない):\n" +
+    '{"candidates":[{"name":"商品名(型番があれば含む)","brand":"メーカー/ブランド名","confidence":"高/中/低"}],' +
+    '"category":"商品カテゴリ","search_keyword":"相場検索に最も適した検索キーワード","cautions":["転売時の注意点があれば(法規制・偽物リスク・出品規制など)"]}\n' +
+    "candidatesは可能性が高い順に最大3件。特定できない場合はcandidatesを空配列にし、categoryに見た目の特徴を書いてください。";
+
+  const res = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "x-api-key": settings.apiKey,
+      "anthropic-version": "2023-06-01",
+      "anthropic-dangerous-direct-browser-access": "true",
+    },
+    body: JSON.stringify({
+      model: settings.model || "claude-opus-5",
+      max_tokens: 3000,
+      output_config: { effort: "low" },
+      messages: [{
+        role: "user",
+        content: [
+          { type: "image", source: { type: "base64", media_type: "image/jpeg", data: b64 } },
+          { type: "text", text: prompt },
+        ],
+      }],
+    }),
+  });
+
+  if (!res.ok) {
+    let msg = "HTTP " + res.status;
+    try { const e = await res.json(); if (e && e.error && e.error.message) msg = e.error.message; } catch (e2) {}
+    if (res.status === 401) msg = "APIキーが正しくありません。設定タブで確認してください";
+    throw new Error(msg);
+  }
+  const data = await res.json();
+  if (data.stop_reason === "refusal") throw new Error("AIがこの画像の判定を辞退しました。手入力をお願いします");
+  const text = (data.content || []).filter(b => b.type === "text").map(b => b.text).join("");
+  const m = text.match(/\{[\s\S]*\}/);
+  if (!m) throw new Error("AIの回答を読み取れませんでした");
+  return JSON.parse(m[0]);
+}
+
+function renderAiResult(r) {
+  const area = $("aiCandidates");
+  area.innerHTML = "";
+  aiCautions = Array.isArray(r.cautions) ? r.cautions.filter(c => typeof c === "string") : [];
+  const cands = Array.isArray(r.candidates) ? r.candidates : [];
+  if (!cands.length) {
+    $("aiStatus").textContent = "商品を特定できませんでした。" + (r.category ? "(見た目: " + r.category + ")" : "") + " 商品名を手入力してください。";
+    renderCautions();
+    return;
+  }
+  $("aiStatus").textContent = "候補が見つかりました。正しいものをタップすると商品名に入ります:";
+  cands.slice(0, 3).forEach(c => {
+    const b = document.createElement("button");
+    const label = [c.brand, c.name].filter(Boolean).join(" ");
+    b.textContent = "🏷 " + label + (c.confidence ? "(確度:" + c.confidence + ")" : "");
+    b.addEventListener("click", () => {
+      $("nameInput").value = r.search_keyword && cands[0] === c ? r.search_keyword : label;
+      onItemChanged();
+      toast("商品名に入れました。STEP2の相場リンクで確認してください");
+    });
+    area.appendChild(b);
+  });
+  renderCautions();
+  recalc();
+}
+
+/* ============================================================
+   JAN → 商品名(Open Food Facts・無料)
+============================================================ */
+$("btnJanLookup").addEventListener("click", async () => {
+  const jan = $("janInput").value.trim();
+  if (!jan) { toast("先にJANコードを読み取るか入力してください"); return; }
+  const btn = $("btnJanLookup");
+  btn.disabled = true;
+  btn.textContent = "検索中…";
+  try {
+    const res = await fetch("https://world.openfoodfacts.org/api/v2/product/" + encodeURIComponent(jan) + ".json");
+    const d = await res.json();
+    const p = d && d.status === 1 ? d.product : null;
+    const name = p ? [p.brands, p.product_name_ja || p.product_name].filter(Boolean).join(" ") : "";
+    if (name) {
+      $("nameInput").value = name;
+      toast("商品名が見つかりました(食品系データベース)");
+      onItemChanged();
+    } else {
+      toast("無料DB(食品系)には登録がありませんでした。STEP2の検索リンクかAI判定・手入力をご利用ください");
+    }
+  } catch (e) {
+    toast("通信エラーです。電波の良い場所でもう一度お試しください");
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "🔎 JANから商品名を調べる(無料・食品系)";
+  }
+});
+
+/* ============================================================
+   相場リンク
+============================================================ */
+function currentQuery() {
+  return $("nameInput").value.trim() || $("janInput").value.trim();
+}
+
+function renderLinks() {
+  const q = currentQuery();
+  const area = $("linksArea");
+  if (!q) {
+    area.innerHTML = '<a class="wide" style="pointer-events:none;color:#7a8781">商品名かJANコードを入れるとボタンが出ます</a>';
+    return;
+  }
+  const e = encodeURIComponent(q);
+  const links = [
+    { label: "メルカリ 売り切れ相場", url: "https://jp.mercari.com/search?keyword=" + e + "&status=sold_out", wide: true },
+    { label: "メルカリ 販売中",       url: "https://jp.mercari.com/search?keyword=" + e + "&status=on_sale" },
+    { label: "ヤフオク 落札相場",     url: "https://auctions.yahoo.co.jp/closedsearch/closedsearch?p=" + e },
+    { label: "Yahoo!フリマ",          url: "https://paypayfleamarket.yahoo.co.jp/search/" + e },
+    { label: "Amazon",                url: "https://www.amazon.co.jp/s?k=" + e },
+    { label: "楽天市場",              url: "https://search.rakuten.co.jp/search/mall/" + e + "/" },
+    { label: "Google検索",            url: "https://www.google.com/search?q=" + e },
+  ];
+  area.innerHTML = "";
+  links.forEach(l => {
+    const a = document.createElement("a");
+    a.href = l.url;
+    a.target = "_blank";
+    a.rel = "noopener";
+    a.textContent = l.label;
+    if (l.wide) a.classList.add("wide");
+    area.appendChild(a);
+  });
+}
+
+/* ============================================================
+   注意点
+============================================================ */
+const CAUTION_RULES = [
+  { kw: ["化粧", "コスメ", "香水", "美容液", "クリーム", "シャンプー", "リップ"], msg: "化粧品は薬機法の対象です。未開封品のみ・使用期限にも注意。" },
+  { kw: ["食品", "菓子", "チョコ", "サプリ", "飲料", "コーヒー", "紅茶", "ラーメン", "カレー"], msg: "食品は賞味期限と保管状態に注意。Amazonでは食品出品に要件があります。" },
+  { kw: ["酒", "ワイン", "ウイスキー", "ビール", "日本酒", "焼酎"], msg: "酒類を継続的に販売するには酒類販売業免許が必要です。" },
+  { kw: ["薬", "医薬", "サプリメント"], msg: "医薬品の個人販売は薬機法で原則できません。医薬部外品・サプリも表示規制に注意。" },
+  { kw: ["チケット", "入場券", "観戦券"], msg: "興行チケットの高値転売はチケット不正転売禁止法で禁止されています。" },
+  { kw: ["電池", "バッテリー", "充電", "モバイルバッテリー"], msg: "リチウム電池内蔵品は配送方法に制限があります(航空便不可など)。" },
+  { kw: ["スプレー", "ガスボンベ", "ライター"], msg: "高圧ガス・引火性のある商品は配送制限があります。" },
+  { kw: ["iphone", "apple", "airpods", "switch", "nintendo", "ポケモン", "ps5", "プレステ", "レゴ", "lego", "フィギュア", "ゲーム"], msg: "人気商品は偽物リスクと、Amazonの出品規制(真贋調査)に注意。" },
+];
+const CAUTIONS_ALWAYS = [
+  "相場は必ず「売り切れ・落札済み」の実績価格で確認しましょう。",
+  "中古品の売買を業(繰り返し)として行うには古物商許可が必要です。",
+  "手数料率・送料は改定されることがあります。大きな仕入れの前に最新の公式情報を確認してください。",
+];
+
+function renderCautions() {
+  const name = ($("nameInput").value || "").toLowerCase();
+  const list = [];
+  CAUTION_RULES.forEach(r => {
+    if (r.kw.some(k => name.includes(k))) list.push(r.msg);
+  });
+  aiCautions.forEach(c => { if (!list.includes(c)) list.push("(AI) " + c); });
+  CAUTIONS_ALWAYS.forEach(c => list.push(c));
+  $("cautionsList").innerHTML = list.map(c => "<li>" + escapeHtml(c) + "</li>").join("");
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, m => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[m]));
+}
+
+/* ============================================================
+   利益計算・判定
+============================================================ */
+function calc(sell, buy, feePct, ship, cost) {
+  const fee = Math.round(sell * feePct / 100);
+  const net = sell - fee - ship - cost;          // 手取り
+  const profit = net - buy;
+  const rate = sell > 0 ? (profit / sell) * 100 : 0;
+  const roi = buy > 0 ? (profit / buy) * 100 : 0;
+  return { fee, net, profit, rate, roi };
+}
+
+function judge(profit, rate) {
+  if (profit >= settings.buyProfit && rate >= settings.buyRate) return "買い";
+  if (profit < settings.dropProfit || rate < settings.dropRate) return "見送り";
+  return "要調査";
+}
+
+function selectedChannel() {
+  const id = $("channelSel").value;
+  return settings.channels.find(c => c.id === id) || settings.channels[0];
+}
+
+function readNum(id) {
+  const v = parseFloat($(id).value);
+  return isFinite(v) && v >= 0 ? v : 0;
+}
+
+function recalc() {
+  const sell = readNum("sellPrice");
+  const buy  = readNum("buyPrice");
+  const ship = readNum("shipInput");
+  const cost = readNum("costInput");
+  const ch = selectedChannel();
+  const box = $("verdictBox");
+
+  if (sell <= 0 || buy <= 0) {
+    box.className = "verdict v-none";
+    box.textContent = "想定販売価格と仕入れ価格を入力してください";
+    $("resultTable").innerHTML = "";
+    $("maxbuyBox").innerHTML = "";
+    $("compareBody").innerHTML = "";
+    return;
+  }
+
+  const r = calc(sell, buy, ch.fee, ship, cost);
+  const verdict = judge(r.profit, r.rate);
+
+  const cls = verdict === "買い" ? "v-buy" : verdict === "要調査" ? "v-check" : "v-skip";
+  const why = verdict === "買い"
+    ? "利益・利益率とも基準クリア"
+    : verdict === "見送り"
+      ? "利益" + yen(r.profit) + "・利益率" + r.rate.toFixed(1) + "%は基準未満"
+      : "基準の間です。相場と状態をもう一度確認";
+  box.className = "verdict " + cls;
+  box.innerHTML = escapeHtml(verdict) + '<span class="why">' + escapeHtml(why) + "</span>";
+
+  const pc = r.profit >= 0 ? "pos" : "neg";
+  $("resultTable").innerHTML =
+    "<tr><td>想定販売価格</td><td>" + yen(sell) + "</td></tr>" +
+    "<tr><td>手数料(" + escapeHtml(ch.name) + " " + ch.fee + "%)</td><td>-" + yen(r.fee) + "</td></tr>" +
+    "<tr><td>送料</td><td>-" + yen(ship) + "</td></tr>" +
+    (cost > 0 ? "<tr><td>その他経費</td><td>-" + yen(cost) + "</td></tr>" : "") +
+    "<tr><td>手取り(入金額)</td><td>" + yen(r.net) + "</td></tr>" +
+    "<tr><td>仕入れ価格</td><td>-" + yen(buy) + "</td></tr>" +
+    '<tr class="profit-row"><td>利益</td><td class="' + pc + '">' + yen(r.profit) + "</td></tr>" +
+    '<tr><td>利益率(販売価格比)</td><td class="' + pc + '">' + r.rate.toFixed(1) + "%</td></tr>" +
+    '<tr><td>回収率ROI(仕入れ比)</td><td class="' + pc + '">' + r.roi.toFixed(0) + "%</td></tr>";
+
+  // 最大仕入れ価格
+  const maxByAmount = r.net - settings.buyProfit;
+  const maxByRate = r.net - sell * settings.buyRate / 100;
+  const maxBuy = Math.floor(Math.min(maxByAmount, maxByRate));
+  $("maxbuyBox").innerHTML = maxBuy > 0
+    ? 'この販売価格なら、仕入れは <b>' + yen(maxBuy) + '</b> 以下が「買い」ライン<br><span style="color:#5c6b64">(目標: 利益' + yen(settings.buyProfit) + '以上 かつ 利益率' + settings.buyRate + '%以上)</span>'
+    : "この販売価格では、目標利益(" + yen(settings.buyProfit) + "・" + settings.buyRate + "%)を出せる仕入れ価格がありません。";
+
+  // 販売先比較
+  const rows = settings.channels.map(c => {
+    const rr = calc(sell, buy, c.fee, ship, cost);
+    return { c, rr, v: judge(rr.profit, rr.rate) };
+  });
+  const bestProfit = Math.max(...rows.map(x => x.rr.profit));
+  $("compareBody").innerHTML = rows.map(x => {
+    const dot = x.v === "買い" ? "d-buy" : x.v === "要調査" ? "d-check" : "d-skip";
+    const best = x.rr.profit === bestProfit ? ' class="best"' : "";
+    const mark = x.c.id === ch.id ? " ✓" : "";
+    return "<tr" + best + "><td>" + escapeHtml(x.c.name) + mark + "</td><td>" + x.c.fee + "%</td><td>" + yen(x.rr.profit) + '</td><td><span class="dot ' + dot + '"></span>' + x.v + "</td></tr>";
+  }).join("");
+
+  renderCautions();
+}
+
+function onItemChanged() {
+  renderLinks();
+  renderCautions();
+  recalc();
+}
+
+["sellPrice", "buyPrice", "shipInput", "costInput"].forEach(id => $(id).addEventListener("input", recalc));
+$("channelSel").addEventListener("change", recalc);
+$("shipPreset").addEventListener("change", () => { $("shipInput").value = $("shipPreset").value; recalc(); });
+$("nameInput").addEventListener("input", onItemChanged);
+$("janInput").addEventListener("input", renderLinks);
+
+/* ============================================================
+   保存・クリア
+============================================================ */
+$("btnSave").addEventListener("click", () => {
+  const sell = readNum("sellPrice"), buy = readNum("buyPrice");
+  const name = $("nameInput").value.trim(), jan = $("janInput").value.trim();
+  if (sell <= 0 || buy <= 0) { toast("想定販売価格と仕入れ価格を入力してください"); return; }
+  if (!name && !jan) { toast("商品名かJANコードを入れてください"); return; }
+  const ch = selectedChannel();
+  const ship = readNum("shipInput"), cost = readNum("costInput");
+  const r = calc(sell, buy, ch.fee, ship, cost);
+  const rec = {
+    id: Date.now(),
+    date: new Date().toISOString(),
+    jan, name,
+    photo: photoThumb || null,
+    channelId: ch.id, channelName: ch.name, feePct: ch.fee,
+    sellPrice: sell, buyPrice: buy, ship, cost,
+    profit: Math.round(r.profit), rate: Math.round(r.rate * 10) / 10,
+    judgment: judge(r.profit, r.rate),
+    memo: $("memoInput").value.trim(),
+  };
+  history.unshift(rec);
+  if (persistHistory()) toast("履歴に保存しました(" + rec.judgment + ")");
+});
+
+$("btnClear").addEventListener("click", () => {
+  ["janInput", "nameInput", "sellPrice", "buyPrice", "memoInput"].forEach(id => $(id).value = "");
+  $("costInput").value = "0";
+  photoFull = null; photoThumb = null; aiCautions = [];
+  $("photoThumb").style.display = "none";
+  $("aiCandidates").innerHTML = "";
+  $("aiStatus").textContent = "";
+  onItemChanged();
+  window.scrollTo(0, 0);
+  toast("クリアしました。次の商品をどうぞ");
+});
+
+/* ============================================================
+   履歴
+============================================================ */
+let openHistId = null;
+
+function renderHistory() {
+  const area = $("histList");
+  if (!history.length) {
+    area.innerHTML = '<div class="card"><div class="hint">まだ履歴がありません。「調べる」タブで商品を調べて保存すると、ここに並びます。</div></div>';
+    return;
+  }
+  area.innerHTML = "";
+  history.forEach(h => {
+    const item = document.createElement("div");
+    item.className = "hist-item";
+    const bcls = h.judgment === "買い" ? "b-buy" : h.judgment === "要調査" ? "b-check" : "b-skip";
+    const d = new Date(h.date);
+    const ds = (d.getMonth() + 1) + "/" + d.getDate() + " " + String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0");
+    item.innerHTML =
+      (h.photo ? '<img src="' + h.photo + '" alt="">' : '<div class="noimg">📦</div>') +
+      '<div class="hist-body"><div class="hist-name">' + escapeHtml(h.name || h.jan || "(名称なし)") + "</div>" +
+      '<div class="hist-meta">' + ds + " / " + escapeHtml(h.channelName) + " / 利益 " + yen(h.profit) + "(" + h.rate + "%)</div></div>" +
+      '<span class="badge ' + bcls + '">' + h.judgment + "</span>";
+    item.addEventListener("click", () => {
+      openHistId = openHistId === h.id ? null : h.id;
+      renderHistory();
+    });
+    area.appendChild(item);
+
+    if (openHistId === h.id) {
+      const det = document.createElement("div");
+      det.className = "hist-detail";
+      det.innerHTML =
+        "<table>" +
+        (h.jan ? "<tr><td>JAN</td><td>" + escapeHtml(h.jan) + "</td></tr>" : "") +
+        "<tr><td>想定販売価格</td><td>" + yen(h.sellPrice) + "</td></tr>" +
+        "<tr><td>仕入れ価格</td><td>" + yen(h.buyPrice) + "</td></tr>" +
+        "<tr><td>手数料</td><td>" + escapeHtml(h.channelName) + " " + h.feePct + "%</td></tr>" +
+        "<tr><td>送料 / 経費</td><td>" + yen(h.ship) + " / " + yen(h.cost) + "</td></tr>" +
+        "<tr><td>利益(利益率)</td><td>" + yen(h.profit) + "(" + h.rate + "%)</td></tr>" +
+        (h.memo ? "<tr><td>メモ</td><td>" + escapeHtml(h.memo) + "</td></tr>" : "") +
+        "</table>" +
+        '<div class="btn-row">' +
+        '<button class="btn secondary small" data-act="load">↩ この内容を呼び出す</button>' +
+        '<button class="btn danger small" data-act="del">🗑 削除</button>' +
+        "</div>";
+      det.querySelector('[data-act="load"]').addEventListener("click", ev => {
+        ev.stopPropagation();
+        loadRecord(h);
+      });
+      det.querySelector('[data-act="del"]').addEventListener("click", ev => {
+        ev.stopPropagation();
+        if (!confirm("この履歴を削除しますか?")) return;
+        history = history.filter(x => x.id !== h.id);
+        persistHistory();
+        renderHistory();
+      });
+      area.appendChild(det);
+    }
+  });
+}
+
+function loadRecord(h) {
+  $("janInput").value = h.jan || "";
+  $("nameInput").value = h.name || "";
+  $("sellPrice").value = h.sellPrice;
+  $("buyPrice").value = h.buyPrice;
+  $("shipInput").value = h.ship;
+  $("costInput").value = h.cost;
+  $("memoInput").value = h.memo || "";
+  const sel = $("channelSel");
+  if ([...sel.options].some(o => o.value === h.channelId)) sel.value = h.channelId;
+  photoThumb = h.photo || null;
+  photoFull = null;
+  const t = $("photoThumb");
+  if (photoThumb) { t.src = photoThumb; t.style.display = "block"; } else { t.style.display = "none"; }
+  aiCautions = [];
+  document.querySelector('nav.tabbar button[data-tab="tab-check"]').click();
+  onItemChanged();
+  toast("履歴の内容を呼び出しました");
+}
+
+$("btnCsv").addEventListener("click", () => {
+  if (!history.length) { toast("履歴がありません"); return; }
+  const rows = [["日付", "JAN", "商品名", "販売先", "想定販売価格", "仕入れ価格", "手数料率%", "送料", "経費", "利益", "利益率%", "判定", "メモ"]];
+  history.forEach(h => rows.push([
+    new Date(h.date).toLocaleString("ja-JP"), h.jan, h.name, h.channelName,
+    h.sellPrice, h.buyPrice, h.feePct, h.ship, h.cost, h.profit, h.rate, h.judgment, h.memo,
+  ]));
+  const csv = rows.map(r => r.map(c => '"' + String(c == null ? "" : c).replace(/"/g, '""') + '"').join(",")).join("\r\n");
+  const blob = new Blob(["﻿" + csv], { type: "text/csv" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "sedori_history.csv";
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+});
+
+$("btnClearHistory").addEventListener("click", () => {
+  if (!confirm("全ての履歴を削除します。よろしいですか?")) return;
+  history = [];
+  persistHistory();
+  renderHistory();
+});
+
+/* ============================================================
+   設定画面
+============================================================ */
+function renderSettingsForm() {
+  $("setBuyProfit").value = settings.buyProfit;
+  $("setBuyRate").value = settings.buyRate;
+  $("setDropProfit").value = settings.dropProfit;
+  $("setDropRate").value = settings.dropRate;
+  $("setApiKey").value = settings.apiKey;
+  $("setModel").value = settings.model || "claude-opus-5";
+  const area = $("feeInputs");
+  area.innerHTML = "";
+  settings.channels.forEach(c => {
+    const wrap = document.createElement("div");
+    const lab = document.createElement("label");
+    lab.className = "fld";
+    lab.textContent = c.name;
+    const inp = document.createElement("input");
+    inp.type = "number";
+    inp.step = "0.1";
+    inp.value = c.fee;
+    inp.dataset.chId = c.id;
+    wrap.appendChild(lab);
+    wrap.appendChild(inp);
+    area.appendChild(wrap);
+  });
+}
+
+$("btnSaveSettings").addEventListener("click", () => {
+  const num = (id, def) => { const v = parseFloat($(id).value); return isFinite(v) && v >= 0 ? v : def; };
+  settings.buyProfit = num("setBuyProfit", DEFAULT_SETTINGS.buyProfit);
+  settings.buyRate = num("setBuyRate", DEFAULT_SETTINGS.buyRate);
+  settings.dropProfit = num("setDropProfit", DEFAULT_SETTINGS.dropProfit);
+  settings.dropRate = num("setDropRate", DEFAULT_SETTINGS.dropRate);
+  settings.apiKey = $("setApiKey").value.trim();
+  settings.model = $("setModel").value;
+  document.querySelectorAll("#feeInputs input").forEach(inp => {
+    const ch = settings.channels.find(c => c.id === inp.dataset.chId);
+    const v = parseFloat(inp.value);
+    if (ch && isFinite(v) && v >= 0 && v < 100) ch.fee = v;
+  });
+  localStorage.setItem(LS_SETTINGS, JSON.stringify(settings));
+  renderChannelSelect();
+  updateAiHint();
+  recalc();
+  toast("設定を保存しました");
+});
+
+$("btnResetSettings").addEventListener("click", () => {
+  if (!confirm("設定を初期値に戻しますか?(APIキーも消えます)")) return;
+  settings = clone(DEFAULT_SETTINGS);
+  localStorage.setItem(LS_SETTINGS, JSON.stringify(settings));
+  renderSettingsForm();
+  renderChannelSelect();
+  updateAiHint();
+  recalc();
+  toast("初期値に戻しました");
+});
+
+function renderChannelSelect() {
+  const sel = $("channelSel");
+  const cur = sel.value;
+  sel.innerHTML = "";
+  settings.channels.forEach(c => {
+    const o = document.createElement("option");
+    o.value = c.id;
+    o.textContent = c.name + "(手数料" + c.fee + "%)";
+    sel.appendChild(o);
+  });
+  if ([...sel.options].some(o => o.value === cur)) sel.value = cur;
+}
+
+/* ============================================================
+   初期化
+============================================================ */
+renderChannelSelect();
+renderSettingsForm();
+renderLinks();
+renderCautions();
+recalc();
+updateAiHint();
+</script>
+</body>
+</html>
