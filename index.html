@@ -385,6 +385,7 @@
 
 <div id="toast"></div>
 
+<script src="zxing.min.js"></script>
 <script>
 "use strict";
 
@@ -465,85 +466,123 @@ document.querySelectorAll("nav.tabbar button").forEach(btn => {
 });
 
 /* ============================================================
-   バーコード読み取り
+   バーコード読み取り(ZXingライブラリ・全端末対応)
 ============================================================ */
-const hasDetector = "BarcodeDetector" in window;
-let detector = null;
-if (hasDetector) {
-  try { detector = new BarcodeDetector({ formats: ["ean_13", "ean_8", "upc_a", "upc_e"] }); }
-  catch (e) { detector = null; }
+let zxingReader = null;
+function getReader() {
+  if (!window.ZXing) return null;
+  if (!zxingReader) {
+    const hints = new Map();
+    hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [
+      ZXing.BarcodeFormat.EAN_13, ZXing.BarcodeFormat.EAN_8,
+      ZXing.BarcodeFormat.UPC_A, ZXing.BarcodeFormat.UPC_E,
+    ]);
+    hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
+    zxingReader = new ZXing.BrowserMultiFormatReader(hints);
+  }
+  return zxingReader;
 }
 
-let scanStream = null, scanTimer = null;
+let scanning = false;
 
 $("btnScan").addEventListener("click", async () => {
-  if (!detector) {
-    toast("この端末はカメラ読み取りに対応していません。「写真から読み取る」か手入力をご利用ください");
-    return;
-  }
+  const reader = getReader();
+  if (!reader) { toast("読み取り機能を読み込めませんでした。ページを再読み込みしてください"); return; }
   if (!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)) {
-    toast("カメラを起動できません(https接続が必要です)。「写真から読み取る」をお試しください");
+    toast("この環境ではカメラを起動できません(https接続が必要)。「写真から読み取る」をお試しください");
     return;
   }
-  try {
-    scanStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
-  } catch (e) {
-    toast("カメラの使用が許可されませんでした");
-    return;
-  }
-  const v = $("scanVideo");
-  v.srcObject = scanStream;
   $("scanOverlay").classList.add("show");
-  try { await v.play(); } catch (e) {}
-  scanLoop();
+  scanning = true;
+  try {
+    await reader.decodeFromConstraints(
+      { audio: false, video: { facingMode: "environment" } },
+      $("scanVideo"),
+      result => {
+        if (result && scanning) {
+          const code = result.getText();
+          stopScan();
+          $("janInput").value = code;
+          toast("読み取りました: " + code);
+          onItemChanged();
+        }
+      }
+    );
+  } catch (e) {
+    stopScan();
+    toast("カメラを起動できませんでした。ブラウザでカメラの使用を「許可」にしてください");
+  }
 });
 
-async function scanLoop() {
-  if (!scanStream) return;
-  try {
-    const codes = await detector.detect($("scanVideo"));
-    if (codes.length) {
-      $("janInput").value = codes[0].rawValue;
-      stopScan();
-      toast("読み取りました: " + codes[0].rawValue);
-      onItemChanged();
-      return;
-    }
-  } catch (e) { /* フレーム未準備などは無視して継続 */ }
-  scanTimer = setTimeout(scanLoop, 250);
-}
-
 function stopScan() {
-  clearTimeout(scanTimer);
-  if (scanStream) { scanStream.getTracks().forEach(t => t.stop()); scanStream = null; }
+  scanning = false;
+  if (zxingReader) { try { zxingReader.reset(); } catch (e) {} }
   $("scanOverlay").classList.remove("show");
 }
 $("scanCancel").addEventListener("click", stopScan);
 
 /* 写真からバーコード読み取り */
 $("btnBarcodePhoto").addEventListener("click", () => {
-  if (!detector) { toast("この端末は画像からのバーコード読み取りに対応していません。手入力をご利用ください"); return; }
+  if (!getReader()) { toast("読み取り機能を読み込めませんでした。ページを再読み込みしてください"); return; }
   $("barcodePhotoInput").click();
 });
 $("barcodePhotoInput").addEventListener("change", async e => {
   const file = e.target.files[0];
   e.target.value = "";
   if (!file) return;
+  toast("読み取り中…");
   try {
     const img = await loadImageFromFile(file);
-    const codes = await detector.detect(img.el);
+    const code = await decodeBarcodePhoto(img.el);
     URL.revokeObjectURL(img.url);
-    if (codes.length) {
-      $("janInput").value = codes[0].rawValue;
-      toast("読み取りました: " + codes[0].rawValue);
+    if (code) {
+      $("janInput").value = code;
+      toast("読み取りました: " + code);
       onItemChanged();
     } else {
-      toast("バーコードを読み取れませんでした。近づけて明るい場所でもう一度撮るか、数字を手入力してください");
+      toast("バーコードを読み取れませんでした。バーコードが大きくハッキリ写るように撮り直すか、数字を手入力してください");
     }
   } catch (err) {
     toast("読み取りに失敗しました: " + err.message);
   }
 });
+
+/* 写真はサイズ・向きを変えながら数回読み取りを試す */
+async function decodeBarcodePhoto(imgEl) {
+  const reader = getReader();
+  const attempts = [[1200, 0], [800, 0], [1600, 0], [1200, 90]];
+  for (const [dim, rot] of attempts) {
+    try {
+      const result = await decodeCanvas(reader, scaledCanvas(imgEl, dim, rot));
+      if (result) return result.getText();
+    } catch (e) { /* 見つからなければ次の方法へ */ }
+  }
+  return null;
+}
+
+async function decodeCanvas(reader, canvas) {
+  if (typeof reader.decodeFromCanvas === "function") return reader.decodeFromCanvas(canvas);
+  const img = new Image();
+  await new Promise((res, rej) => { img.onload = res; img.onerror = rej; img.src = canvas.toDataURL("image/png"); });
+  return reader.decodeFromImageElement(img);
+}
+
+function scaledCanvas(imgEl, maxDim, rotateDeg) {
+  const w = imgEl.naturalWidth, h = imgEl.naturalHeight;
+  const scale = Math.min(1, maxDim / Math.max(w, h));
+  const cw = Math.max(1, Math.round(w * scale)), ch = Math.max(1, Math.round(h * scale));
+  const c = document.createElement("canvas");
+  const ctx = c.getContext("2d");
+  if (rotateDeg === 90) {
+    c.width = ch; c.height = cw;
+    ctx.translate(ch, 0);
+    ctx.rotate(Math.PI / 2);
+  } else {
+    c.width = cw; c.height = ch;
+  }
+  ctx.drawImage(imgEl, 0, 0, cw, ch);
+  return c;
+}
 
 /* ============================================================
    画像ユーティリティ
