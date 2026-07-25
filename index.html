@@ -135,6 +135,36 @@
   .hist-detail td { padding: 3px 2px; }
   .hist-detail td:last-child { text-align: right; font-weight: 600; }
 
+  /* 状態バッジ・フィルター */
+  .b-kento { background: #eef1ef; color: #5c6b64; }
+  .b-shiire { background: #e3ecfb; color: #1d4ed8; }
+  .b-shuppin { background: #f3e8ff; color: #7e22ce; }
+  .b-ureta { background: #e5f6ec; color: #15803d; }
+  .badge-col { display: flex; flex-direction: column; gap: 4px; align-items: flex-end; flex-shrink: 0; }
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
+  .chips button { border: 1.5px solid #cfe0d8; background: #f4f8f6; color: #14563f; border-radius: 999px; padding: 6px 12px; font-size: .8rem; font-weight: 700; cursor: pointer; }
+  .chips button.active { background: #166e52; border-color: #166e52; color: #fff; }
+  .btn-row.wrap { flex-wrap: wrap; }
+  .btn-row.wrap .btn { flex: 1 1 40%; }
+
+  /* 収支ダッシュボード */
+  .stat-big { display: flex; gap: 8px; margin: 8px 0 4px; }
+  .stat-big > div { flex: 1; background: #f4f8f6; border-radius: 10px; padding: 10px 6px; text-align: center; }
+  .stat-big .num { font-size: 1.05rem; font-weight: 800; color: #14563f; }
+  .stat-big .lbl { font-size: .68rem; color: #5c6b64; margin-top: 2px; }
+  table.months { width: 100%; border-collapse: collapse; font-size: .82rem; margin-top: 8px; }
+  table.months th { font-size: .72rem; color: #5c6b64; text-align: right; padding: 4px; border-bottom: 1.5px solid #dde4e0; }
+  table.months th:first-child, table.months td:first-child { text-align: left; }
+  table.months td { padding: 6px 4px; text-align: right; border-bottom: 1px solid #eef1ef; font-variant-numeric: tabular-nums; }
+
+  /* 相場自動取得 */
+  .mk-summary { display: flex; gap: 8px; margin-top: 8px; }
+  .mk-summary button { flex: 1; border: 1.5px solid #bcd3ca; background: #e3f0eb; color: #14563f; border-radius: 10px; padding: 10px 6px; font-weight: 700; font-size: .8rem; cursor: pointer; }
+  .mk-summary .num { display: block; font-size: 1.1rem; }
+  .mk-row { display: flex; align-items: center; gap: 8px; padding: 7px 0; border-bottom: 1px solid #eef1ef; font-size: .84rem; }
+  .mk-row a { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #14563f; text-decoration: none; }
+  .mk-row .mk-price { font-weight: 800; white-space: nowrap; font-variant-numeric: tabular-nums; }
+
   /* タブバー */
   nav.tabbar {
     position: fixed; bottom: 0; left: 0; right: 0; z-index: 30;
@@ -227,6 +257,8 @@
     <span class="step-label">STEP 2</span>
     <h2>相場を調べる(タップで各サイトを開く)</h2>
     <div class="hint">「売り切れ」「落札相場」=実際に売れた価格を必ず見てください。出品中の価格は当てになりません。</div>
+    <button class="btn secondary" id="btnMarket">📊 楽天の新品相場を自動取得</button>
+    <div id="marketArea"></div>
     <div class="links" id="linksArea"></div>
   </div>
 
@@ -295,8 +327,13 @@
 <!-- ============ 履歴 ============ -->
 <section id="tab-history" class="tab">
   <div class="card">
+    <h2>収支ダッシュボード</h2>
+    <div id="statsArea"></div>
+  </div>
+  <div class="card">
     <h2>調べた履歴</h2>
-    <div class="hint">タップすると詳細が開きます。データはこの端末(ブラウザ)の中にだけ保存されます。</div>
+    <div class="hint">タップすると詳細が開き、「仕入れた」「売れた」の記録ができます。データはこの端末(ブラウザ)の中にだけ保存されます。</div>
+    <div class="chips" id="histChips"></div>
     <div class="btn-row">
       <button class="btn secondary small" id="btnCsv">📄 CSVで書き出す</button>
       <button class="btn danger small" id="btnClearHistory">🗑 全履歴を削除</button>
@@ -334,6 +371,16 @@
     <h2>販売先の手数料率(%)</h2>
     <div class="grid2" id="feeInputs"></div>
     <div class="hint">※めやすです。手数料は改定されることがあるので、ときどき各サービスの公式情報を確認してください。</div>
+  </div>
+
+  <div class="card">
+    <h2>相場の自動取得(楽天・無料)</h2>
+    <label class="fld" for="setRakutenId">楽天アプリID</label>
+    <input type="text" id="setRakutenId" inputmode="numeric" placeholder="数字のID(空欄なら自動取得オフ)">
+    <div class="hint">
+      無料で取得できます: webservice.rakuten.co.jp を開く → 楽天会員でログイン → 「アプリID発行」→ アプリ名(例: せどりチェッカー)とURLを入れて発行 → 表示された「アプリID」をここに貼り付け。
+      バーコードを読むと楽天の新品価格が自動で表示されるようになります。
+    </div>
   </div>
 
   <div class="card">
@@ -405,6 +452,7 @@ const DEFAULT_SETTINGS = {
   ],
   buyProfit: 500, buyRate: 15, dropProfit: 200, dropRate: 8,
   apiKey: "", model: "claude-opus-5",
+  rakutenId: "",
 };
 
 function clone(o) { return JSON.parse(JSON.stringify(o)); }
@@ -425,6 +473,7 @@ function loadHistory() {
   catch (e) { return []; }
 }
 let history = loadHistory();
+history.forEach(h => { if (!h.status) h.status = "検討中"; });
 
 function persistHistory() {
   try {
@@ -537,6 +586,7 @@ async function scanTick() {
         $("janInput").value = code;
         toast("読み取りました: " + code);
         onItemChanged();
+        autoFetchMarket();
         return;
       }
     } catch (e) { /* このフレームでは見つからず → 継続 */ }
@@ -590,6 +640,7 @@ $("barcodePhotoInput").addEventListener("change", async e => {
       $("janInput").value = code;
       toast("読み取りました: " + code);
       onItemChanged();
+      autoFetchMarket();
     } else {
       toast("バーコードを読み取れませんでした。バーコードが大きくハッキリ写るように撮り直すか、数字を手入力してください");
     }
@@ -859,6 +910,67 @@ function renderLinks() {
 }
 
 /* ============================================================
+   楽天 新品相場の自動取得
+============================================================ */
+$("btnMarket").addEventListener("click", () => fetchMarket(true));
+
+function autoFetchMarket() {
+  if (settings.rakutenId && $("janInput").value.trim()) fetchMarket(false).catch(() => {});
+}
+
+async function fetchMarket(manual) {
+  const q = $("janInput").value.trim() || $("nameInput").value.trim();
+  const area = $("marketArea");
+  if (!q) { if (manual) toast("先にバーコードを読み取るか、商品名を入れてください"); return; }
+  if (!settings.rakutenId) {
+    if (manual) area.innerHTML = '<div class="hint">この機能を使うには「設定」タブで楽天アプリIDを入力してください(無料で取得できます。取得手順も設定タブに書いてあります)。</div>';
+    return;
+  }
+  area.innerHTML = '<div class="hint"><span class="spin">⏳</span> 楽天の相場を取得中…</div>';
+  try {
+    const url = "https://app.rakuten.co.jp/services/api/IchibaItem/Search/20220601"
+      + "?applicationId=" + encodeURIComponent(settings.rakutenId)
+      + "&keyword=" + encodeURIComponent(q)
+      + "&hits=10&sort=" + encodeURIComponent("+itemPrice");
+    const res = await fetch(url);
+    const d = await res.json().catch(() => ({}));
+    if (!res.ok || d.error) {
+      if (d.error === "not_found") { renderMarket({ Items: [] }); return; }
+      throw new Error(d.error === "wrong_parameter"
+        ? "楽天アプリIDが正しくない可能性があります。設定タブで確認してください"
+        : (d.error_description || ("HTTP " + res.status)));
+    }
+    renderMarket(d);
+  } catch (e) {
+    area.innerHTML = '<div class="hint">相場を取得できませんでした: ' + escapeHtml(e.message) + "</div>";
+  }
+}
+
+function renderMarket(d) {
+  const area = $("marketArea");
+  const items = (d.Items || []).map(x => x.Item || x).filter(x => x && x.itemPrice > 0);
+  if (!items.length) {
+    area.innerHTML = '<div class="hint">楽天では見つかりませんでした(廃盤・中古のみの商品など)。メルカリ売り切れ相場をご確認ください。</div>';
+    return;
+  }
+  const prices = items.map(i => i.itemPrice).sort((a, b) => a - b);
+  const low = prices[0], med = prices[Math.floor((prices.length - 1) / 2)];
+  let html = '<div class="mk-summary">'
+    + '<button data-p="' + low + '">楽天最安値<span class="num">' + yen(low) + "</span>タップで採用</button>"
+    + '<button data-p="' + med + '">中央値<span class="num">' + yen(med) + "</span>タップで採用</button></div>";
+  html += items.slice(0, 3).map(i =>
+    '<div class="mk-row"><span class="mk-price">' + yen(i.itemPrice) + '</span><a href="' + escapeHtml(i.itemUrl || "#") + '" target="_blank" rel="noopener">' + escapeHtml(i.itemName || "") + "</a></div>"
+  ).join("");
+  html += '<div class="hint">※楽天の「新品」販売価格(' + items.length + '件)です。中古で売る場合はメルカリ売り切れ相場を優先してください。</div>';
+  area.innerHTML = html;
+  area.querySelectorAll(".mk-summary button").forEach(b => b.addEventListener("click", () => {
+    $("sellPrice").value = b.dataset.p;
+    recalc();
+    toast("想定販売価格に " + yen(+b.dataset.p) + " を入れました");
+  }));
+}
+
+/* ============================================================
    注意点
 ============================================================ */
 const CAUTION_RULES = [
@@ -1011,6 +1123,7 @@ $("btnSave").addEventListener("click", () => {
   const rec = {
     id: Date.now(),
     date: new Date().toISOString(),
+    status: "検討中",
     jan, name,
     photo: photoThumb || null,
     channelId: ch.id, channelName: ch.name, feePct: ch.fee,
@@ -1030,70 +1143,204 @@ $("btnClear").addEventListener("click", () => {
   $("photoThumb").style.display = "none";
   $("aiCandidates").innerHTML = "";
   $("aiStatus").textContent = "";
+  $("marketArea").innerHTML = "";
   onItemChanged();
   window.scrollTo(0, 0);
   toast("クリアしました。次の商品をどうぞ");
 });
 
 /* ============================================================
-   履歴
+   履歴・販売管理・収支ダッシュボード
 ============================================================ */
 let openHistId = null;
+let histFilter = "すべて";
+const STATUSES = ["すべて", "検討中", "仕入れた", "出品中", "売れた"];
+const ST_CLASS = { "検討中": "b-kento", "仕入れた": "b-shiire", "出品中": "b-shuppin", "売れた": "b-ureta" };
+
+function monthKeyOf(iso) {
+  const d = new Date(iso);
+  return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0");
+}
+
+function computeStats() {
+  const months = {};
+  let stockCount = 0, stockCost = 0, totalProfit = 0, totalSold = 0;
+  const get = k => months[k] || (months[k] = { buyN: 0, buyAmt: 0, sellN: 0, sellAmt: 0, profit: 0 });
+  history.forEach(h => {
+    const st = h.status || "検討中";
+    if (st === "仕入れた" || st === "出品中") { stockCount++; stockCost += h.buyPrice || 0; }
+    if (st === "仕入れた" || st === "出品中" || st === "売れた") {
+      const m = get(monthKeyOf(h.date));
+      m.buyN++; m.buyAmt += h.buyPrice || 0;
+    }
+    if (st === "売れた" && h.soldDate) {
+      const m = get(monthKeyOf(h.soldDate));
+      m.sellN++; m.sellAmt += h.soldPrice || 0; m.profit += h.soldProfit || 0;
+      totalProfit += h.soldProfit || 0; totalSold++;
+    }
+  });
+  return { months, stockCount, stockCost, totalProfit, totalSold };
+}
+
+function renderStats() {
+  const s = computeStats();
+  const tm = s.months[monthKeyOf(new Date().toISOString())] || { sellN: 0, profit: 0 };
+  let html = '<div class="stat-big">'
+    + '<div><div class="num">' + yen(tm.profit) + '</div><div class="lbl">今月の実利益(' + tm.sellN + '件)</div></div>'
+    + '<div><div class="num">' + yen(s.totalProfit) + '</div><div class="lbl">累計実利益(' + s.totalSold + '件)</div></div>'
+    + '<div><div class="num">' + s.stockCount + '件</div><div class="lbl">在庫 ' + yen(s.stockCost) + "</div></div>"
+    + "</div>";
+  const keys = Object.keys(s.months).sort().reverse().slice(0, 6);
+  if (keys.length) {
+    html += '<table class="months"><tr><th>月</th><th>仕入れ</th><th>売上</th><th>実利益</th></tr>';
+    keys.forEach(k => {
+      const m = s.months[k];
+      html += "<tr><td>" + k.replace("-", "/") + "</td><td>" + yen(m.buyAmt) + "(" + m.buyN + ")</td><td>" + yen(m.sellAmt) + "</td><td>" + yen(m.profit) + "</td></tr>";
+    });
+    html += "</table>";
+  } else {
+    html += '<div class="hint">履歴で「🛒 仕入れた」「💴 売れた」を記録すると、月ごとの収支がここに集計されます。</div>';
+  }
+  $("statsArea").innerHTML = html;
+}
+
+function renderChips() {
+  const counts = {};
+  history.forEach(h => { const st = h.status || "検討中"; counts[st] = (counts[st] || 0) + 1; });
+  $("histChips").innerHTML = STATUSES.map(st => {
+    const n = st === "すべて" ? history.length : (counts[st] || 0);
+    return '<button data-st="' + st + '" class="' + (histFilter === st ? "active" : "") + '">' + st + " " + n + "</button>";
+  }).join("");
+  $("histChips").querySelectorAll("button").forEach(b => b.addEventListener("click", () => {
+    histFilter = b.dataset.st;
+    renderHistory();
+  }));
+}
+
+function setStatus(h, st, extra) {
+  h.status = st;
+  Object.assign(h, extra || {});
+  persistHistory();
+  renderHistory();
+}
 
 function renderHistory() {
+  renderStats();
+  renderChips();
   const area = $("histList");
-  if (!history.length) {
-    area.innerHTML = '<div class="card"><div class="hint">まだ履歴がありません。「調べる」タブで商品を調べて保存すると、ここに並びます。</div></div>';
+  const shown = history.filter(h => histFilter === "すべて" || (h.status || "検討中") === histFilter);
+  if (!shown.length) {
+    area.innerHTML = '<div class="card"><div class="hint">' + (history.length ? "この状態の商品はありません。" : "まだ履歴がありません。「調べる」タブで商品を調べて保存すると、ここに並びます。") + "</div></div>";
     return;
   }
   area.innerHTML = "";
-  history.forEach(h => {
+  shown.forEach(h => {
+    const st = h.status || "検討中";
     const item = document.createElement("div");
     item.className = "hist-item";
     const bcls = h.judgment === "買い" ? "b-buy" : h.judgment === "要調査" ? "b-check" : "b-skip";
     const d = new Date(h.date);
-    const ds = (d.getMonth() + 1) + "/" + d.getDate() + " " + String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0");
+    const ds = (d.getMonth() + 1) + "/" + d.getDate();
+    const meta = st === "売れた"
+      ? ds + " / " + escapeHtml(h.soldChannelName || h.channelName) + " / 実利益 " + yen(h.soldProfit || 0)
+      : ds + " / " + escapeHtml(h.channelName) + " / 見込み利益 " + yen(h.profit) + "(" + h.rate + "%)";
     item.innerHTML =
       (h.photo ? '<img src="' + h.photo + '" alt="">' : '<div class="noimg">📦</div>') +
       '<div class="hist-body"><div class="hist-name">' + escapeHtml(h.name || h.jan || "(名称なし)") + "</div>" +
-      '<div class="hist-meta">' + ds + " / " + escapeHtml(h.channelName) + " / 利益 " + yen(h.profit) + "(" + h.rate + "%)</div></div>" +
-      '<span class="badge ' + bcls + '">' + h.judgment + "</span>";
+      '<div class="hist-meta">' + meta + "</div></div>" +
+      '<div class="badge-col"><span class="badge ' + ST_CLASS[st] + '">' + st + '</span><span class="badge ' + bcls + '">' + h.judgment + "</span></div>";
     item.addEventListener("click", () => {
       openHistId = openHistId === h.id ? null : h.id;
       renderHistory();
     });
     area.appendChild(item);
+    if (openHistId === h.id) area.appendChild(buildDetail(h));
+  });
+}
 
-    if (openHistId === h.id) {
-      const det = document.createElement("div");
-      det.className = "hist-detail";
-      det.innerHTML =
-        "<table>" +
-        (h.jan ? "<tr><td>JAN</td><td>" + escapeHtml(h.jan) + "</td></tr>" : "") +
-        "<tr><td>想定販売価格</td><td>" + yen(h.sellPrice) + "</td></tr>" +
-        "<tr><td>仕入れ価格</td><td>" + yen(h.buyPrice) + "</td></tr>" +
-        "<tr><td>手数料</td><td>" + escapeHtml(h.channelName) + " " + h.feePct + "%</td></tr>" +
-        "<tr><td>送料 / 経費</td><td>" + yen(h.ship) + " / " + yen(h.cost) + "</td></tr>" +
-        "<tr><td>利益(利益率)</td><td>" + yen(h.profit) + "(" + h.rate + "%)</td></tr>" +
-        (h.memo ? "<tr><td>メモ</td><td>" + escapeHtml(h.memo) + "</td></tr>" : "") +
-        "</table>" +
-        '<div class="btn-row">' +
-        '<button class="btn secondary small" data-act="load">↩ この内容を呼び出す</button>' +
-        '<button class="btn danger small" data-act="del">🗑 削除</button>' +
-        "</div>";
-      det.querySelector('[data-act="load"]').addEventListener("click", ev => {
-        ev.stopPropagation();
-        loadRecord(h);
-      });
-      det.querySelector('[data-act="del"]').addEventListener("click", ev => {
-        ev.stopPropagation();
-        if (!confirm("この履歴を削除しますか?")) return;
-        history = history.filter(x => x.id !== h.id);
-        persistHistory();
-        renderHistory();
-      });
-      area.appendChild(det);
-    }
+function buildDetail(h) {
+  const st = h.status || "検討中";
+  const det = document.createElement("div");
+  det.className = "hist-detail";
+  let html =
+    "<table>" +
+    (h.jan ? "<tr><td>JAN</td><td>" + escapeHtml(h.jan) + "</td></tr>" : "") +
+    "<tr><td>想定販売価格</td><td>" + yen(h.sellPrice) + "</td></tr>" +
+    "<tr><td>仕入れ価格</td><td>" + yen(h.buyPrice) + "</td></tr>" +
+    "<tr><td>手数料</td><td>" + escapeHtml(h.channelName) + " " + h.feePct + "%</td></tr>" +
+    "<tr><td>送料 / 経費</td><td>" + yen(h.ship) + " / " + yen(h.cost) + "</td></tr>" +
+    "<tr><td>見込み利益</td><td>" + yen(h.profit) + "(" + h.rate + "%)</td></tr>";
+  if (st === "売れた") {
+    const sd = h.soldDate ? new Date(h.soldDate) : null;
+    html += "<tr><td>売却</td><td>" + (sd ? (sd.getMonth() + 1) + "/" + sd.getDate() + " " : "") + escapeHtml(h.soldChannelName || "") + " " + yen(h.soldPrice || 0) + "</td></tr>" +
+      "<tr><td>実利益</td><td>" + yen(h.soldProfit || 0) + "</td></tr>";
+  }
+  if (h.memo) html += "<tr><td>メモ</td><td>" + escapeHtml(h.memo) + "</td></tr>";
+  html += "</table>";
+
+  let actions = "";
+  if (st === "検討中") actions = '<button class="btn small" data-act="to-shiire">🛒 仕入れた</button>';
+  else if (st === "仕入れた") actions =
+    '<button class="btn small" data-act="to-shuppin">📤 出品した</button>' +
+    '<button class="btn small" data-act="to-sold">💴 売れた</button>' +
+    '<button class="btn secondary small" data-act="to-kento">↩ 検討中に戻す</button>';
+  else if (st === "出品中") actions =
+    '<button class="btn small" data-act="to-sold">💴 売れた</button>' +
+    '<button class="btn secondary small" data-act="to-shiire">↩ 仕入れたに戻す</button>';
+  else if (st === "売れた") actions = '<button class="btn secondary small" data-act="un-sell">↩ 売却を取り消す</button>';
+
+  html += '<div class="btn-row wrap">' + actions + "</div>" +
+    '<div id="soldForm"></div>' +
+    '<div class="btn-row">' +
+    '<button class="btn secondary small" data-act="load">↩ 調べる画面に呼び出す</button>' +
+    '<button class="btn danger small" data-act="del">🗑 削除</button>' +
+    "</div>";
+  det.innerHTML = html;
+
+  const on = (act, fn) => {
+    const b = det.querySelector('[data-act="' + act + '"]');
+    if (b) b.addEventListener("click", ev => { ev.stopPropagation(); fn(); });
+  };
+  on("to-shiire", () => { setStatus(h, "仕入れた"); toast("「仕入れた」にしました"); });
+  on("to-shuppin", () => { setStatus(h, "出品中"); toast("「出品中」にしました"); });
+  on("to-kento", () => setStatus(h, "検討中"));
+  on("un-sell", () => setStatus(h, "出品中", { soldPrice: null, soldDate: null, soldProfit: null, soldChannelName: null }));
+  on("to-sold", () => showSoldForm(h, det.querySelector("#soldForm")));
+  on("load", () => loadRecord(h));
+  on("del", () => {
+    if (!confirm("この履歴を削除しますか?")) return;
+    history = history.filter(x => x.id !== h.id);
+    persistHistory();
+    renderHistory();
+  });
+  det.addEventListener("click", ev => ev.stopPropagation());
+  return det;
+}
+
+function showSoldForm(h, container) {
+  const opts = settings.channels.map(c =>
+    '<option value="' + c.id + '"' + (c.id === h.channelId ? " selected" : "") + ">" + escapeHtml(c.name) + "(手数料" + c.fee + "%)</option>"
+  ).join("");
+  container.innerHTML =
+    '<div class="grid2"><div><label class="fld">実際に売れた価格(円)</label><input type="number" inputmode="numeric" id="soldPriceIn" value="' + h.sellPrice + '"></div>' +
+    '<div><label class="fld">売れた場所</label><select id="soldChIn">' + opts + "</select></div></div>" +
+    '<label class="fld">送料(円)</label><input type="number" inputmode="numeric" id="soldShipIn" value="' + h.ship + '">' +
+    '<button class="btn small" id="soldConfirm" style="margin-top:8px">✅ 売却を記録する</button>';
+  container.querySelector("#soldConfirm").addEventListener("click", ev => {
+    ev.stopPropagation();
+    const sp = parseFloat(container.querySelector("#soldPriceIn").value);
+    if (!isFinite(sp) || sp <= 0) { toast("売れた価格を入力してください"); return; }
+    const ch = settings.channels.find(c => c.id === container.querySelector("#soldChIn").value) || settings.channels[0];
+    const ship = parseFloat(container.querySelector("#soldShipIn").value) || 0;
+    const fee = Math.round(sp * ch.fee / 100);
+    const profit = Math.round(sp - fee - ship - (h.cost || 0) - h.buyPrice);
+    setStatus(h, "売れた", {
+      soldPrice: Math.round(sp),
+      soldDate: new Date().toISOString(),
+      soldProfit: profit,
+      soldChannelName: ch.name,
+    });
+    toast("売却を記録しました。実利益 " + yen(profit));
   });
 }
 
@@ -1119,10 +1366,15 @@ function loadRecord(h) {
 
 $("btnCsv").addEventListener("click", () => {
   if (!history.length) { toast("履歴がありません"); return; }
-  const rows = [["日付", "JAN", "商品名", "販売先", "想定販売価格", "仕入れ価格", "手数料率%", "送料", "経費", "利益", "利益率%", "判定", "メモ"]];
+  const rows = [["日付", "JAN", "商品名", "販売先", "想定販売価格", "仕入れ価格", "手数料率%", "送料", "経費", "見込み利益", "利益率%", "判定", "状態", "売却日", "実売値", "実利益", "メモ"]];
   history.forEach(h => rows.push([
     new Date(h.date).toLocaleString("ja-JP"), h.jan, h.name, h.channelName,
-    h.sellPrice, h.buyPrice, h.feePct, h.ship, h.cost, h.profit, h.rate, h.judgment, h.memo,
+    h.sellPrice, h.buyPrice, h.feePct, h.ship, h.cost, h.profit, h.rate, h.judgment,
+    h.status || "検討中",
+    h.soldDate ? new Date(h.soldDate).toLocaleString("ja-JP") : "",
+    h.soldPrice != null ? h.soldPrice : "",
+    h.soldProfit != null ? h.soldProfit : "",
+    h.memo,
   ]));
   const csv = rows.map(r => r.map(c => '"' + String(c == null ? "" : c).replace(/"/g, '""') + '"').join(",")).join("\r\n");
   const blob = new Blob(["﻿" + csv], { type: "text/csv" });
@@ -1150,6 +1402,7 @@ function renderSettingsForm() {
   $("setDropRate").value = settings.dropRate;
   $("setApiKey").value = settings.apiKey;
   $("setModel").value = settings.model || "claude-opus-5";
+  $("setRakutenId").value = settings.rakutenId || "";
   const area = $("feeInputs");
   area.innerHTML = "";
   settings.channels.forEach(c => {
@@ -1176,6 +1429,7 @@ $("btnSaveSettings").addEventListener("click", () => {
   settings.dropRate = num("setDropRate", DEFAULT_SETTINGS.dropRate);
   settings.apiKey = $("setApiKey").value.trim();
   settings.model = $("setModel").value;
+  settings.rakutenId = $("setRakutenId").value.trim();
   document.querySelectorAll("#feeInputs input").forEach(inp => {
     const ch = settings.channels.find(c => c.id === inp.dataset.chId);
     const v = parseFloat(inp.value);
